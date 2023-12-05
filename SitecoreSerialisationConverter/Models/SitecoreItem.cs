@@ -30,5 +30,16 @@ namespace SitecoreSerialisationConverter.Models
         [XmlIgnore]
         public IList<SitecoreItem> Children { get; set; }
 
+        public bool IsParentSyncEnabled { get; set; }
+
+        public IEnumerable<SitecoreItem> Flatten()
+        {
+            yield return this;
+
+            foreach (var item in Children)
+            foreach (var child in item.Flatten())
+                yield return child;
+        }
+
     }
 }

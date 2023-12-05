@@ -2,9 +2,10 @@
 
 namespace SitecoreSerialisationConverter.Service
 {
+    using System.Linq;
     using SitecoreSerialisationConverter.Models;
 
-    internal static class ItemTreeService
+    public static class ItemTreeService
     {
         public static ItemTree GetFoldersFormStrings(List<SitecoreItem> items)
         {
@@ -50,6 +51,30 @@ namespace SitecoreSerialisationConverter.Service
                 
             }
             return itemTree;
+        }
+
+        public static Dictionary<string, SitecoreItem> GetFilteredItemDictionary(IList<SitecoreItem> items)
+        {
+            var response = new Dictionary<string, SitecoreItem>();
+
+            foreach (var sitecoreItem in items)
+            {
+                var parentPath = sitecoreItem.Include.Substring(0, sitecoreItem.Include.LastIndexOf("\\") + 1);
+                //Check if parent item is in dictionary
+                var parentItemExists = response.TryGetValue(parentPath, out var parentItem);
+                if (parentItemExists && parentItem.ChildItemSynchronization != ChildSynchronizationType.NoChildSynchronization)
+                {
+                    sitecoreItem.IsParentSyncEnabled = true;
+                }
+                else
+                {
+                    sitecoreItem.IsParentSyncEnabled = false;
+                }
+
+                response.Add(sitecoreItem.Include.Replace(".item","\\"), sitecoreItem);
+            }
+
+            return response;
         }
     }
 }

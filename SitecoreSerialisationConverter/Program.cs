@@ -20,6 +20,7 @@ using SitecoreSerialisationConverter.Models;
 namespace SitecoreSerialisationConverter
 {
     using Extensions;
+    using SitecoreSerialisationConverter.Service;
 
     public class Program
     {
@@ -60,7 +61,6 @@ namespace SitecoreSerialisationConverter
 
             if (project != null)
             {
-                AliasList = new List<AliasItem>();
                 string projectName = project.Descendants(msbuild + "RootNamespace").Select(x => x.Value).FirstOrDefault();
                 SitecoreDb database = (SitecoreDb)Enum.Parse(typeof(SitecoreDb),
                     project.Descendants(msbuild + "SitecoreDatabase").Select(x => x.Value).FirstOrDefault() ?? "master");
@@ -80,23 +80,38 @@ namespace SitecoreSerialisationConverter
                 var ignoreSyncChildren = false;
                 var ignoreDirectSyncChildren = false;
 
-                foreach (var sitecoreItem in project.Descendants(msbuild + "SitecoreItem"))
-                {
-                    var item = sitecoreItem.DeserializeSitecoreItem<SitecoreItem>();
+                var items = project.Descendants(msbuild + "SitecoreItem")
+                    .Select(x => x.DeserializeSitecoreItem<SitecoreItem>())
+                    .ToList();
 
-                    if (!string.IsNullOrEmpty(item.SitecoreName))
+                AliasList = items
+                    .Where(a => !string.IsNullOrWhiteSpace(a.SitecoreName))
+                    .Select(s => new AliasItem
                     {
-                        AliasItem aliasItem = new AliasItem()
-                        {
-                            AliasName = Path.GetFileNameWithoutExtension(item.Include),
-                            SitecoreName = item.SitecoreName
-                        };
+                        AliasName = Path.GetFileNameWithoutExtension(s.Include),
+                        SitecoreName = s.SitecoreName
+                    })
+                    .ToList();
+                
+                //foreach (var sitecoreItem in project.Descendants(msbuild + "SitecoreItem"))
+                //{
+                //    var item = sitecoreItem.DeserializeSitecoreItem<SitecoreItem>();
 
-                        AliasList.Add(aliasItem);
-                    }
+                //    if (!string.IsNullOrEmpty(item.SitecoreName))
+                //    {
+                //        AliasItem aliasItem = new AliasItem()
+                //        {
+                //            AliasName = Path.GetFileNameWithoutExtension(item.Include),
+                //            SitecoreName = item.SitecoreName
+                //        };
 
-                    RenderItem(database, newConfigModule, ref ignoreSyncChildren, ref ignoreDirectSyncChildren, item.Include, item.ItemDeployment, item.ChildItemSynchronization);
-                }
+                //        AliasList.Add(aliasItem);
+                //    }
+
+                //    RenderItem(database, newConfigModule, ref ignoreSyncChildren, ref ignoreDirectSyncChildren, item.Include, item.ItemDeployment, item.ChildItemSynchronization);
+                //}
+
+                ParseItemDictionary(items, database, newConfigModule);
 
                 foreach (var sitecoreRole in project.Descendants(msbuild + "SitecoreRole"))
                 {
@@ -132,6 +147,19 @@ namespace SitecoreSerialisationConverter
 
                     WriteNewConfig(savePath, newConfigModule);
                 }
+            }
+        }
+        
+        private static void ParseItemDictionary(IList<SitecoreItem> items, 
+            SitecoreDb database, 
+            SerializationModuleConfiguration newConfigModule)
+        {
+            var dictionaryItems = ItemTreeService.GetFilteredItemDictionary(items);
+
+            foreach (var sitecoreItem in dictionaryItems)
+            {
+                if(!sitecoreItem.Value.IsParentSyncEnabled)
+                    AddItem(database, newConfigModule, sitecoreItem.Value);
             }
         }
 
@@ -209,6 +237,28 @@ namespace SitecoreSerialisationConverter
                 Scope = ProjectedScope.Get(childSynchronisation)
             };
             
+            //if it's not default then set it.
+            if (database != SitecoreDb.master)
+            {
+                newSpec.Database = database.ToString();
+            }
+
+            //set defaults
+            newConfigModule.Items.Includes.Add(newSpec);
+        }
+
+        public static void AddItem(SitecoreDb database, SerializationModuleConfiguration newConfigModule, SitecoreItem item)
+        {
+            var includePath = PathAlias.Remove(item.Include, AliasList);
+
+            FilesystemTreeSpec newSpec = new FilesystemTreeSpec()
+            {
+                Name = SafeName.Get(includePath),
+                Path = ItemPath.FromPathString(SafePath.Get(includePath)),
+                AllowedPushOperations = PushOperation.Get(item.ItemDeployment),
+                Scope = ProjectedScope.Get(item.ChildItemSynchronization)
+            };
+
             //if it's not default then set it.
             if (database != SitecoreDb.master)
             {
