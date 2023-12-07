@@ -251,22 +251,27 @@ namespace SitecoreSerialisationConverter
         {
             var includePath = PathAlias.Remove(item.Include, AliasList);
 
-            FilesystemTreeSpec newSpec = new FilesystemTreeSpec()
-            {
-                Name = SafeName.Get(includePath),
-                Path = ItemPath.FromPathString(SafePath.Get(includePath)),
-                AllowedPushOperations = PushOperation.Get(item.ItemDeployment),
-                Scope = ProjectedScope.Get(item.ChildItemSynchronization)
-            };
+            var path = SafePath.Get(includePath);
 
-            //if it's not default then set it.
-            if (database != SitecoreDb.master)
+            if (!IsIgnoredRoute(database, path))
             {
-                newSpec.Database = database.ToString();
+                FilesystemTreeSpec newSpec = new FilesystemTreeSpec
+                {
+                    Name = SafeName.Get(includePath),
+                    Path = ItemPath.FromPathString(SafePath.Get(includePath)),
+                    AllowedPushOperations = PushOperation.Get(item.ItemDeployment),
+                    Scope = ProjectedScope.Get(item.ChildItemSynchronization)
+                };
+
+                //if it's not default then set it.
+                if (database != SitecoreDb.master)
+                {
+                    newSpec.Database = database.ToString();
+                }
+
+                //set defaults
+                newConfigModule.Items.Includes.Add(newSpec);
             }
-
-            //set defaults
-            newConfigModule.Items.Includes.Add(newSpec);
         }
 
         private static void WriteNewConfig(string savePath, SerializationModuleConfiguration moduleConfiguration)
