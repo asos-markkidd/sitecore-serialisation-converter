@@ -55,16 +55,15 @@
 
             foreach (var isParentSyncEnabledItem in responseTree.Values.Where(x => x.IsParentSyncEnabled))
             {
-                if (isParentSyncEnabledItem != null)
-                {
-                    var lastIndexOfParentPath = isParentSyncEnabledItem.Include.LastIndexOf("\\");
-                    var parentPath = isParentSyncEnabledItem.Include.Substring(0, lastIndexOfParentPath + 1);
-                    var isParentItemPresent = responseTree.TryGetValue(parentPath, out var parentItem);
+                Assert.IsNotNull(isParentSyncEnabledItem);
 
-                    Assert.IsTrue(isParentItemPresent);
-                    Assert.IsNotNull(parentItem);
-                    Assert.IsTrue(parentItem.ChildItemSynchronization != ChildSynchronizationType.NoChildSynchronization);
-                }
+                var lastIndexOfParentPath = isParentSyncEnabledItem.Include.LastIndexOf("\\");
+                var parentPath = isParentSyncEnabledItem.Include.Substring(0, lastIndexOfParentPath + 1);
+                var isParentItemPresent = responseTree.TryGetValue(parentPath, out var parentItem);
+
+                Assert.IsTrue(isParentItemPresent);
+                Assert.IsNotNull(parentItem);
+                Assert.IsTrue(parentItem.ChildItemSynchronization != ChildSynchronizationType.NoChildSynchronization);
             }
 
         }
