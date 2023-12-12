@@ -2,7 +2,9 @@
 
 namespace SitecoreSerialisationConverter.Models
 {
+    using System;
     using System.Collections.Generic;
+    using System.Threading;
 
     public class SitecoreRootItem : SitecoreItem
     {
@@ -21,7 +23,20 @@ namespace SitecoreSerialisationConverter.Models
         public string Include { get; set; }
 
         public string SitecoreName { get; set; }
+
+        [XmlIgnore]
         public ItemDeploymentType ItemDeployment { get; set; }
+
+        [XmlAttribute("ItemDeployment")]
+        public string ItemDeploymentValue
+        {
+            get => this.ItemDeployment.ToString();
+            set =>
+                this.ItemDeployment = Enum.TryParse(value, out ItemDeploymentType enumValue)
+                    ? enumValue
+                    : ItemDeploymentType.NeverDeploy;
+        }
+
         public ChildSynchronizationType ChildItemSynchronization { get; set; }
 
         [XmlIgnore]
